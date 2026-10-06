@@ -328,7 +328,6 @@ export default function StudentDashboard() {
           <div className="flex justify-between items-center mb-6">
             <div>
               <h3 className="font-bold text-lg text-slate-900">My wellbeing trend</h3>
-              <p className="text-xs text-slate-400 mt-0.5">Calculated in realtime from your check-ins</p>
             </div>
             <button
               onClick={() => router.push('/student/history')}
@@ -412,7 +411,7 @@ export default function StudentDashboard() {
           </div>
 
           <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-            <span>Adaptive recommendation from ML model</span>
+            <span>Adaptive recommendation</span>
             <button
               onClick={() => router.push('/student/recommendations')}
               className="text-indigo-600 font-semibold hover:underline"

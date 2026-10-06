@@ -312,9 +312,6 @@ export default function InsightsPage() {
                         {str.feature.replace(/_/g, ' ')}
                       </h4>
                     </div>
-                    <span className="bg-indigo-100/70 text-indigo-800 text-xs px-2.5 py-1 rounded-lg font-bold">
-                      {percentage}%
-                    </span>
                   </div>
                 );
               })}

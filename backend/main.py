@@ -35,7 +35,7 @@ try:
 except Exception as e:
     print(f"ERROR loading models: {e}")
 
-# FEATURE CONFIGURATION (UPDATED TO MATCH DATASET)
+# FEATURE CONFIGURATION
 CONTINUOUS_FEATURES = ['anxiety_level', 'self_esteem', 'depression']
 LIKERT_FEATURES = [
     'academic_performance', 'study_load', 'teacher_student_relationship',
@@ -72,32 +72,6 @@ class StudentStressInput(BaseModel):
     blood_pressure: int = Field(..., ge=1, le=3)
     mental_health_history: int = Field(..., ge=0, le=1)
     extracurricular_activities: int = Field(..., ge=0, le=5)
-    
-    class Config:
-        schema_extra = {
-            "example": {
-                "academic_performance": 3,
-                "study_load": 4,
-                "teacher_student_relationship": 3,
-                "future_career_concerns": 2,
-                "basic_needs": 5,
-                "living_conditions": 2,
-                "safety": 3,
-                "noise_level": 4,
-                "anxiety_level": 15,
-                "self_esteem": 18,
-                "depression": 12,
-                "peer_pressure": 3,
-                "social_support": 2,
-                "bullying": 1,
-                "sleep_quality": 2,
-                "headache": 3,
-                "breathing_problem": 2,
-                "blood_pressure": 2,
-                "mental_health_history": 0,
-                "extracurricular_activities": 3
-            }
-        }
 
 class PredictionResponse(BaseModel):
     """Output schema for predictions"""
@@ -109,28 +83,41 @@ class PredictionResponse(BaseModel):
     interventions: List[str]
     raw_probabilities: Dict[str, float]
 
-# SHAP EXPLAINER (initialized globally for efficiency)
+# SHAP EXPLAINER
 SHAP_EXPLAINER = None
 
 def initialize_shap_explainer():
-    """Initialize SHAP explainer (TreeExplainer for XGBoost)"""
+    """Initialize SHAP explainer using the underlying Booster for robust XGBoost support"""
     global SHAP_EXPLAINER
     if SHAP_EXPLAINER is None:
-        SHAP_EXPLAINER = shap.TreeExplainer(model)
+        booster = model.get_booster() if hasattr(model, 'get_booster') else model
+        SHAP_EXPLAINER = shap.TreeExplainer(booster)
         print("✓ SHAP explainer initialized")
 
 def scale_input(data_dict: dict) -> np.ndarray:
-    """Apply appropriate scaling to input features"""
+    """Apply appropriate scaling and match exact model training feature order"""
     df = pd.DataFrame([data_dict])
     
-    # StandardScaler for continuous
-    df[CONTINUOUS_FEATURES] = scaler_standard.transform(df[CONTINUOUS_FEATURES])
+    # Retrieve exact feature names the model was trained on
+    feature_names = getattr(model, 'feature_names_in_', ALL_FEATURES)
     
-    # MinMaxScaler for Likert
-    df[LIKERT_FEATURES] = scaler_minmax.transform(df[LIKERT_FEATURES])
+    # Ensure all features exist in dataframe
+    for col in feature_names:
+        if col not in df.columns:
+            df[col] = 0
+            
+    # Scale continuous features
+    cont_feats = [c for c in CONTINUOUS_FEATURES if c in df.columns]
+    if cont_feats:
+        df[cont_feats] = scaler_standard.transform(df[cont_feats])
     
-    # Reorder to match training features
-    return df[ALL_FEATURES].values
+    # Scale Likert features
+    lik_feats = [l for l in LIKERT_FEATURES if l in df.columns]
+    if lik_feats:
+        df[lik_feats] = scaler_minmax.transform(df[lik_feats])
+    
+    # Reorder columns to exactly match model training order
+    return df[feature_names].values
 
 def get_shap_values(scaled_input: np.ndarray, prediction: int) -> List[Dict[str, Any]]:
     """
@@ -139,20 +126,17 @@ def get_shap_values(scaled_input: np.ndarray, prediction: int) -> List[Dict[str,
     """
     try:
         initialize_shap_explainer()
+        feature_names = getattr(model, 'feature_names_in_', ALL_FEATURES)
         
         # Get SHAP values for the instance
         shap_values = SHAP_EXPLAINER.shap_values(scaled_input)
         
-        # Handle different SHAP output formats for multi-class models
+        # Handle multi-class SHAP output formats robustly
         if isinstance(shap_values, list):
-            # List of arrays, one per class, each shape (n_samples, n_features)
             instance_shap = shap_values[prediction][0]
         elif isinstance(shap_values, np.ndarray):
             if shap_values.ndim == 3:
-                # Shape (n_samples, n_features, n_classes) for XGBoost multi-class
-                if shap_values.shape[2] == 3:
-                    instance_shap = shap_values[0, :, prediction]
-                elif shap_values.shape[1] == 3:
+                if shap_values.shape[2] == len(feature_names):
                     instance_shap = shap_values[0, prediction, :]
                 else:
                     instance_shap = shap_values[0, :, prediction]
@@ -161,17 +145,16 @@ def get_shap_values(scaled_input: np.ndarray, prediction: int) -> List[Dict[str,
         else:
             instance_shap = shap_values[0]
             
-        # Ensure instance_shap is a 1D array of length len(ALL_FEATURES)
         instance_shap = np.array(instance_shap).flatten()
         
         # Map to feature names with absolute impact
         feature_impact = [
             {
-                'feature': ALL_FEATURES[i],
+                'feature': feature_names[i],
                 'impact': float(np.abs(instance_shap[i])),
-                'contribution': float(instance_shap[i])  # signed value
+                'contribution': float(instance_shap[i])
             }
-            for i in range(len(ALL_FEATURES))
+            for i in range(len(feature_names))
         ]
         
         # Sort by absolute impact and return top 5
@@ -184,82 +167,45 @@ def get_shap_values(scaled_input: np.ndarray, prediction: int) -> List[Dict[str,
         return []
 
 def generate_interventions(input_data: StudentStressInput, stress_level: int) -> List[str]:
-    """
-    Generate contextual intervention suggestions based on input metrics
-    """
+    """Generate contextual intervention suggestions based on input metrics"""
     suggestions = []
     
-    # Sleep-related
     if input_data.sleep_quality <= 2:
         suggestions.append("💤 SLEEP: Establish a consistent bedtime routine (10-11 PM). Avoid screens 30min before sleep.")
-    
-    # Academic load
     if input_data.study_load >= 4:
         suggestions.append("📚 STUDY: Break study sessions into 45-min blocks with 10-min breaks (Pomodoro).")
-    
-    # Anxiety
     if input_data.anxiety_level >= 14:
         suggestions.append("🧠 ANXIETY: Practice breathing exercises (4-7-8 technique) for 5min daily.")
-    
-    # Basic needs / Financial
     if input_data.basic_needs >= 4:
         suggestions.append("💰 SUPPORT: Meet with university financial aid office or explore student loans.")
-    
-    # Social support
     if input_data.social_support <= 2:
         suggestions.append("🤝 SUPPORT: Reach out to a friend, counselor, or join a campus club.")
-    
-    # Physiological symptoms
     if input_data.headache >= 3 or input_data.breathing_problem >= 3:
         suggestions.append("⚕️ HEALTH: Consult campus health center. Consider stress-management workshops.")
-    
-    # Self-esteem
     if input_data.self_esteem <= 12:
         suggestions.append("🎯 SELF-ESTEEM: Seek peer support or university counseling services (often free).")
-    
-    # If high stress, recommend professional help
     if stress_level == 2:
         suggestions.insert(0, "🚨 HIGH STRESS: Consider consulting campus counseling or mental health services.")
     
-    return suggestions[:3]  # Return top 3 suggestions
+    return suggestions[:3]
 
-# ROUTES
 @app.get("/", tags=["Health"])
 def root():
-    """API health check"""
-    return {
-        "status": "online",
-        "service": "Student Stress ML Predictor",
-        "version": "1.0.0"
-    }
+    return {"status": "online", "service": "Student Stress ML Predictor", "version": "1.0.0"}
 
 @app.post("/predict", response_model=PredictionResponse, tags=["Predictions"])
 def predict_stress(student_data: StudentStressInput):
-    """
-    PRIMARY ENDPOINT: Predict stress level with interpretability
-    
-    Input: 20 student survey responses
-    Output: Stress category + top stressors + interventions
-    """
     try:
-        # Convert to dict for processing
         data_dict = student_data.dict()
-        
-        # Scale input
         scaled_input = scale_input(data_dict)
         
-        # Predict
         prediction = model.predict(scaled_input)[0]
         probabilities = model.predict_proba(scaled_input)[0]
         confidence = float(np.max(probabilities))
         
-        # Get SHAP explanations
         top_stressors = get_shap_values(scaled_input, prediction)
-        
-        # Generate interventions
         interventions = generate_interventions(student_data, prediction)
         
-        # Probability mapping
         prob_dict = {
             'Low': float(probabilities[0]),
             'Moderate': float(probabilities[1]),
@@ -275,63 +221,18 @@ def predict_stress(student_data: StudentStressInput):
             interventions=interventions,
             raw_probabilities=prob_dict
         )
-    
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Prediction error: {str(e)}")
 
-@app.post("/batch-predict", tags=["Predictions"])
-def batch_predict(student_list: List[StudentStressInput]):
-    """
-    BATCH ENDPOINT: Predict for multiple students (admin cohort analysis)
-    Returns aggregated metrics
-    """
-    predictions = []
-    stress_counts = {0: 0, 1: 0, 2: 0}
-    
-    for student in student_list:
-        data_dict = student.dict()
-        scaled_input = scale_input(data_dict)
-        
-        pred = model.predict(scaled_input)[0]
-        proba = model.predict_proba(scaled_input)[0]
-        
-        predictions.append({
-            'stress_level': STRESS_LABELS[pred],
-            'confidence': float(np.max(proba)),
-            'probabilities': {
-                'Low': float(proba[0]),
-                'Moderate': float(proba[1]),
-                'High': float(proba[2])
-            }
-        })
-        stress_counts[pred] += 1
-    
-    return {
-        'total_students': len(student_list),
-        'predictions': predictions,
-        'aggregated_stats': {
-            'low_stress_count': stress_counts[0],
-            'moderate_stress_count': stress_counts[1],
-            'high_stress_count': stress_counts[2],
-            'high_stress_percentage': (stress_counts[2] / len(student_list) * 100) if student_list else 0
-        }
-    }
-
 @app.get("/model-info", tags=["Info"])
 def model_info():
-    """Get model metadata"""
+    feature_names = getattr(model, 'feature_names_in_', ALL_FEATURES)
     return {
         'model_type': 'XGBoost',
-        'n_estimators': 150,
         'n_classes': 3,
         'class_labels': STRESS_LABELS,
-        'n_features': len(ALL_FEATURES),
-        'features': ALL_FEATURES,
-        'feature_groups': {
-            'continuous': CONTINUOUS_FEATURES,
-            'likert': LIKERT_FEATURES,
-            'categorical': CATEGORICAL_FEATURES
-        }
+        'n_features': len(feature_names),
+        'features': list(feature_names)
     }
 
 if __name__ == '__main__':
