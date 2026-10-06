@@ -4,12 +4,11 @@ import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 
 interface GaugeChartProps {
   stressLevel: number;
-  confidence: number;
   stressLabel: string;
   color: string;
 }
 
-export default function GaugeChart({ stressLevel, confidence, stressLabel, color }: GaugeChartProps) {
+export default function GaugeChart({ stressLevel, stressLabel, color }: GaugeChartProps) {
   const data = [
     { name: 'LOW', value: 33, color: '#10b981' },
     { name: 'MODERATE', value: 34, color: '#f59e0b' },
@@ -58,7 +57,6 @@ export default function GaugeChart({ stressLevel, confidence, stressLabel, color
         <p className="text-3xl font-bold" style={{ color }}>
           {stressLabel.toUpperCase()}
         </p>
-        <p className="text-sm text-gray-600">{Math.round(confidence * 100)}% confidence</p>
       </div>
 
       <div className="flex gap-6 text-xs">

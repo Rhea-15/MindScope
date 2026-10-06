@@ -5,7 +5,7 @@ import { Inter } from 'next/font/google';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'MindScope - Student Wellbeing Platform',
+  title: 'MindScope',
   description: 'AI-powered stress assessment and mental health support for students',
 };
 

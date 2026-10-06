@@ -21,21 +21,22 @@ export interface StudentStressInput {
   extracurricular_activities: number;
 }
 
+export interface TopStressor {
+  feature: string;
+  impact: number;
+  contribution: number;
+}
+
 export interface PredictionResult {
   stress_level: string;
   stress_level_code: number;
   confidence: number;
   color: string;
-  top_stressors: Array<{
-    feature: string;
-    impact: number;
-    contribution: number;
-  }>;
+  top_stressors: TopStressor[];
   interventions: string[];
   raw_probabilities: {
     Low: number;
     Moderate: number;
     High: number;
   };
-  timestamp?: string;
 }

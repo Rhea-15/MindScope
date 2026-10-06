@@ -16,37 +16,6 @@ export default function HistoryPage() {
   const [history, setHistory] = useState<AssessmentRecord[]>([]);
   const [timeRange, setTimeRange] = useState<'7' | '30' | '90' | 'all'>('30');
 
-  useEffect(() => {
-    // For now, mock data. In real app, fetch from backend
-    const mockHistory: AssessmentRecord[] = [
-      {
-        date: '2026-10-14',
-        stress_level: 'Moderate',
-        confidence: 0.67,
-        top_stressor: 'Study Load',
-      },
-      {
-        date: '2026-09-16',
-        stress_level: 'Moderate',
-        confidence: 0.71,
-        top_stressor: 'Financial Stress',
-      },
-      {
-        date: '2026-08-18',
-        stress_level: 'Low',
-        confidence: 0.76,
-        top_stressor: 'Sleep Quality',
-      },
-      {
-        date: '2026-07-12',
-        stress_level: 'Moderate',
-        confidence: 0.69,
-        top_stressor: 'Career Concerns',
-      },
-    ];
-
-    setHistory(mockHistory);
-  }, [timeRange]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white p-8">
@@ -89,7 +58,6 @@ export default function HistoryPage() {
         {/* Trend Chart */}
         <div className="bg-white rounded-lg p-8 shadow-sm border border-gray-200 mb-8">
           <h2 className="text-xl font-semibold mb-6 text-gray-900">Stress Level Over Time</h2>
-          <p className="text-sm text-gray-600 mb-4">Six private assessments · May–October 2026</p>
           <TrendChart data={history} />
         </div>
 
@@ -113,9 +81,6 @@ export default function HistoryPage() {
                   </th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">
                     Top Stressor
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">
-                    Actions
                   </th>
                 </tr>
               </thead>
@@ -151,11 +116,6 @@ export default function HistoryPage() {
                     <td className="px-6 py-4 text-sm text-gray-700">
                       {record.top_stressor}
                     </td>
-                    <td className="px-6 py-4">
-                      <button className="text-blue-600 text-sm font-medium hover:underline">
-                        View →
-                      </button>
-                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -173,25 +133,6 @@ export default function HistoryPage() {
               </button>
             </div>
           )}
-        </div>
-
-        {/* Insights Card */}
-        <div className="mt-8 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-8 border border-blue-200">
-          <h3 className="text-lg font-semibold text-gray-900 mb-3">📊 Pattern Insights</h3>
-          <ul className="space-y-2 text-sm text-gray-700">
-            <li className="flex gap-3">
-              <span className="text-blue-600 font-bold">→</span>
-              <span>Your stress has remained stable around the Moderate range over the past 3 months.</span>
-            </li>
-            <li className="flex gap-3">
-              <span className="text-blue-600 font-bold">→</span>
-              <span>Study Load consistently appears as a top stressor across assessments.</span>
-            </li>
-            <li className="flex gap-3">
-              <span className="text-blue-600 font-bold">→</span>
-              <span>Sleep Quality has fluctuated, showing correlation with stress levels.</span>
-            </li>
-          </ul>
         </div>
       </div>
     </div>

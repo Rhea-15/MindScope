@@ -135,7 +135,7 @@ def scale_input(data_dict: dict) -> np.ndarray:
 def get_shap_values(scaled_input: np.ndarray, prediction: int) -> List[Dict[str, Any]]:
     """
     Calculate SHAP values for interpretability
-    Returns top 5 contributing features
+    Returns top contributing features for the predicted class
     """
     try:
         initialize_shap_explainer()
@@ -143,11 +143,26 @@ def get_shap_values(scaled_input: np.ndarray, prediction: int) -> List[Dict[str,
         # Get SHAP values for the instance
         shap_values = SHAP_EXPLAINER.shap_values(scaled_input)
         
-        # For multi-class, get SHAP values for predicted class
+        # Handle different SHAP output formats for multi-class models
         if isinstance(shap_values, list):
+            # List of arrays, one per class, each shape (n_samples, n_features)
             instance_shap = shap_values[prediction][0]
+        elif isinstance(shap_values, np.ndarray):
+            if shap_values.ndim == 3:
+                # Shape (n_samples, n_features, n_classes) for XGBoost multi-class
+                if shap_values.shape[2] == 3:
+                    instance_shap = shap_values[0, :, prediction]
+                elif shap_values.shape[1] == 3:
+                    instance_shap = shap_values[0, prediction, :]
+                else:
+                    instance_shap = shap_values[0, :, prediction]
+            else:
+                instance_shap = shap_values[0]
         else:
             instance_shap = shap_values[0]
+            
+        # Ensure instance_shap is a 1D array of length len(ALL_FEATURES)
+        instance_shap = np.array(instance_shap).flatten()
         
         # Map to feature names with absolute impact
         feature_impact = [
@@ -164,6 +179,8 @@ def get_shap_values(scaled_input: np.ndarray, prediction: int) -> List[Dict[str,
         return top_5
     except Exception as e:
         print(f"SHAP calculation error: {e}")
+        import traceback
+        traceback.print_exc()
         return []
 
 def generate_interventions(input_data: StudentStressInput, stress_level: int) -> List[str]:
