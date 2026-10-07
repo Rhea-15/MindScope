@@ -28,16 +28,6 @@ export default function LoginPage() {
         <p className="text-lg text-slate-600 mb-12 max-w-md">
           AI-powered stress insights for students and universities, designed with privacy and explainability at the core.
         </p>
-        <div className="grid grid-cols-2 gap-8 max-w-md">
-          <div>
-            <h3 className="font-semibold text-slate-900 mb-2">🔒 Private by design</h3>
-            <p className="text-sm text-slate-600">Personal for students. Aggregated for institutions.</p>
-          </div>
-          <div>
-            <h3 className="font-semibold text-slate-900 mb-2">💡 Explainable insights</h3>
-            <p className="text-sm text-slate-600">See the factors behind every prediction.</p>
-          </div>
-        </div>
       </div>
 
       {/* Right Side - Login Form */}

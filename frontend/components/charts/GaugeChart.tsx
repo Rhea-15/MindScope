@@ -6,9 +6,10 @@ interface GaugeChartProps {
   stressLevel: number;
   stressLabel: string;
   color: string;
+  confidence?: number; // Added to resolve TypeScript error
 }
 
-export default function GaugeChart({ stressLevel, stressLabel, color }: GaugeChartProps) {
+export default function GaugeChart({ stressLevel, stressLabel, color, confidence }: GaugeChartProps) {
   const data = [
     { name: 'LOW', value: 33, color: '#10b981' },
     { name: 'MODERATE', value: 34, color: '#f59e0b' },

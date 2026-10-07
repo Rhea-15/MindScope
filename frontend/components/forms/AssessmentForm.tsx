@@ -32,12 +32,9 @@ export default function AssessmentForm() {
     setLoading(true);
     try {
       const result = await predictStress(formData);
+      // We still store latest locally for immediate UI updates, but historical data is now in the DB
       localStorage.setItem('latestPrediction', JSON.stringify(result));
       localStorage.setItem('latestAssessment', JSON.stringify(formData));
-      
-      const history = JSON.parse(localStorage.getItem('assessmentHistory') || '[]');
-      history.push({ date: new Date().toISOString(), ...result });
-      localStorage.setItem('assessmentHistory', JSON.stringify(history));
 
       router.push('/student/insights');
     } catch (error) {

@@ -8,7 +8,7 @@ export default function AdminDashboard() {
   const [filter, setFilter] = useState({ dept: 'Computer Engineering', year: 'Year 2', cohort: 'All cohorts', sem: 'Semester 1', period: 'Mid-semester' });
 
   useEffect(() => {
-    // Dynamic mock for rendering Admin Dashboard UI exactly as per video
+    // Dynamic mock for rendering Admin Dashboard UI\
     setData({
       total: 1100, lowPercent: 31, modPercent: 48, highPercent: 21, avgIndex: 58,
       distribution: [
