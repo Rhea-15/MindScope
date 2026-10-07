@@ -3,7 +3,15 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import TrendChart from '@/components/charts/TrendChart';
-import { getAssessmentHistory, clearAssessmentHistory } from '@/lib/api';
+import { getAssessmentHistory, clearAssessmentHistory, deleteAssessmentRecord } from '@/lib/api';
+
+const Icons = {
+  Trash: () => (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+    </svg>
+  )
+};
 
 interface AssessmentRecord {
   id: number;
@@ -39,10 +47,19 @@ export default function HistoryPage() {
   }, []);
 
   const handleClearHistory = async () => {
-    if (window.confirm('Are you sure you want to clear your assessment history everywhere?')) {
+    if (window.confirm('Are you sure you want to clear your entire assessment history?')) {
       await clearAssessmentHistory();
       setHistory([]);
       localStorage.removeItem('latestPrediction');
+    }
+  };
+
+  const handleDeleteSingle = async (id: number) => {
+    if (window.confirm('Delete this assessment record?')) {
+      const success = await deleteAssessmentRecord(id);
+      if (success) {
+        setHistory(prev => prev.filter(record => record.id !== id));
+      }
     }
   };
 
@@ -67,7 +84,7 @@ export default function HistoryPage() {
           </div>
           {history.length > 0 && (
             <button onClick={handleClearHistory} className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs md:text-sm font-semibold rounded-xl border border-rose-200 transition shadow-2xs">
-              Clear History
+              Clear All
             </button>
           )}
         </div>
@@ -102,7 +119,8 @@ export default function HistoryPage() {
                 <tr>
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Date</th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Stress Level</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Top Stressor</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Top Factor</th>
+                  <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -121,6 +139,15 @@ export default function HistoryPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm font-semibold text-slate-700 capitalize">{record.top_stressor}</td>
+                    <td className="px-6 py-4 text-right">
+                      <button 
+                        onClick={() => handleDeleteSingle(record.id)}
+                        className="text-slate-400 hover:text-rose-600 transition-colors p-2 rounded-lg hover:bg-rose-50"
+                        title="Delete record"
+                      >
+                        <Icons.Trash />
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

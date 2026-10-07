@@ -39,3 +39,13 @@ export async function clearAssessmentHistory(email: string = 'alex@northbridge.e
     return false;
   }
 }
+
+export async function deleteAssessmentRecord(id: number) {
+  try {
+    const response = await fetch(`${API_URL}/history/record/${id}`, { method: 'DELETE' });
+    return response.ok;
+  } catch (error) {
+    console.error("Error deleting record:", error);
+    return false;
+  }
+}

@@ -151,7 +151,7 @@ def scale_input(data_dict: dict) -> np.ndarray:
     
     return df[feature_names].values
 
-def get_shap_values(scaled_input: np.ndarray, prediction: int) -> List[Dict[str, Any]]:
+def get_shap_values(scaled_input: np.ndarray, prediction: int, raw_data: dict) -> List[Dict[str, Any]]:
     try:
         initialize_shap_explainer()
         feature_names = getattr(model, 'feature_names_in_', ALL_FEATURES)
@@ -172,14 +172,47 @@ def get_shap_values(scaled_input: np.ndarray, prediction: int) -> List[Dict[str,
             
         instance_shap = np.array(instance_shap).flatten()
         
-        feature_impact = [
-            {'feature': feature_names[i], 'impact': float(np.abs(instance_shap[i])), 'contribution': float(instance_shap[i])}
-            for i in range(len(feature_names))
-        ]
-        top_5 = sorted(feature_impact, key=lambda x: x['impact'], reverse=True)[:5]
+        feature_impact = []
+        for i, feature in enumerate(feature_names):
+            raw_val = raw_data.get(feature, 0)
+            contrib = float(instance_shap[i])
+            
+            # CONTEXT AWARE FILTER: 
+            # If stress is Moderate (1) or High (2), healthy factors cannot be top stressors
+            if prediction in [1, 2] and is_feature_healthy(feature, raw_val):
+                contrib = -999.0
+            
+            # If stress is Low (0), unhealthy factors cannot be top protective factors
+            if prediction == 0 and not is_feature_healthy(feature, raw_val):
+                contrib = -999.0
+
+            feature_impact.append({
+                'feature': feature,
+                'impact': float(np.abs(instance_shap[i])),
+                'contribution': contrib
+            })
+            
+        top_5 = sorted(feature_impact, key=lambda x: x['contribution'], reverse=True)[:5]
+        
+        # Restore actual contribution values for the frontend
+        for item in top_5:
+            if item['contribution'] == -999.0:
+                idx = list(feature_names).index(item['feature'])
+                item['contribution'] = float(instance_shap[idx])
+                
         return top_5
     except Exception:
         return []
+
+def is_feature_healthy(feature: str, val: float) -> bool:
+    """Business logic filter to prevent healthy baselines from being flagged as stressors."""
+    if feature == 'mental_health_history' and val == 0: return True
+    if feature == 'blood_pressure' and val == 2: return True
+    if feature in ['headache', 'breathing_problem', 'noise_level', 'peer_pressure', 'bullying'] and val <= 1: return True
+    if feature in ['anxiety_level', 'depression'] and val <= 5: return True
+    if feature in ['sleep_quality', 'social_support', 'academic_performance', 'basic_needs', 'living_conditions', 'safety', 'teacher_student_relationship', 'extracurricular_activities'] and val >= 4: return True
+    if feature in ['study_load', 'future_career_concerns'] and val <= 2: return True
+    return False
 
 def generate_interventions(input_data: StudentStressInput, stress_level: int) -> List[str]:
     suggestions = []
@@ -205,7 +238,8 @@ def predict_stress(student_data: StudentStressInput, db: Session = Depends(get_d
         probabilities = model.predict_proba(scaled_input)[0]
         confidence = float(np.max(probabilities))
         
-        top_stressors = get_shap_values(scaled_input, prediction)
+        # FIX: Pass data_dict so the filter knows what the user actually entered
+        top_stressors = get_shap_values(scaled_input, prediction, data_dict)
         interventions = generate_interventions(student_data, prediction)
         
         prob_dict = {'Low': float(probabilities[0]), 'Moderate': float(probabilities[1]), 'High': float(probabilities[2])}
@@ -247,6 +281,14 @@ def clear_user_history(email: str, db: Session = Depends(get_db)):
     db.commit()
     return {"status": "cleared"}
 
+@app.delete("/history/record/{record_id}", tags=["History"])
+def delete_single_record(record_id: int, db: Session = Depends(get_db)):
+    record = db.query(DBAssessmentRecord).filter(DBAssessmentRecord.id == record_id).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="Record not found")
+    db.delete(record)
+    db.commit()
+    return {"status": "deleted"}
 if __name__ == '__main__':
     import uvicorn
     uvicorn.run(app, host='0.0.0.0', port=8000)

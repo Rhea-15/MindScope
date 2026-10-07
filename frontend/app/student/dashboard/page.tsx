@@ -106,10 +106,21 @@ export default function StudentDashboard() {
 
   if (!data) return null;
 
+  // Dynamic card colors for Stress Level
   const stressCardStyles =
-    data.stressLevelCode === 0 ? { bg: 'bg-[#F0FDF4]', border: 'border-emerald-100', text: 'text-emerald-700', badge: 'bg-emerald-100/70 text-emerald-800' }
-    : data.stressLevelCode === 2 ? { bg: 'bg-[#FFF1F2]', border: 'border-rose-100', text: 'text-rose-700', badge: 'bg-rose-100/70 text-rose-800' }
-    : { bg: 'bg-[#FFFBEB]', border: 'border-amber-100', text: 'text-amber-700', badge: 'bg-amber-100/70 text-amber-800' };
+    data.stressLevelCode === 0
+      ? { bg: 'bg-[#F0FDF4]', border: 'border-emerald-100', text: 'text-emerald-700', badge: 'bg-emerald-100/70 text-emerald-800' }
+      : data.stressLevelCode === 2
+      ? { bg: 'bg-[#FFF1F2]', border: 'border-rose-100', text: 'text-rose-700', badge: 'bg-rose-100/70 text-rose-800' }
+      : { bg: 'bg-[#FFFBEB]', border: 'border-amber-100', text: 'text-amber-700', badge: 'bg-amber-100/70 text-amber-800' };
+
+  // Fully dynamic styles and labels for the 3rd factor card
+  const factorCardStyles = 
+    data.stressLevelCode === 0 
+      ? { bg: 'bg-[#F0FDF4]', border: 'border-emerald-100/80', text: 'text-emerald-900/70', label: 'Protective factor', icon: <Icons.Sparkle /> }
+      : data.stressLevelCode === 1
+      ? { bg: 'bg-[#FFFBEB]', border: 'border-amber-100/80', text: 'text-amber-900/70', label: 'Main pressure point', icon: <Icons.AlertTarget /> }
+      : { bg: 'bg-[#FFF1F2]', border: 'border-rose-100/80', text: 'text-rose-900/70', label: 'Top stressor', icon: <Icons.AlertTarget /> };
 
   return (
     <div className="p-8 md:p-10 max-w-6xl mx-auto font-sans">
@@ -153,14 +164,14 @@ export default function StudentDashboard() {
           <p className={`text-2xl font-bold ${stressCardStyles.text} capitalize`}>{data.stressLevel}</p>
         </div>
 
-        {/* Dynamic Contributor vs Stressor logic */}
-        <div className={`${data.stressLevelCode === 0 ? 'bg-[#F0FDF4] border-emerald-100/80' : 'bg-[#FFF7ED] border-orange-100/80'} p-6 rounded-2xl border shadow-xs flex flex-col justify-between`}>
+        {/* 3rd Card: Fully Dynamic Factor Logic */}
+        <div className={`${factorCardStyles.bg} p-6 rounded-2xl border ${factorCardStyles.border} shadow-xs flex flex-col justify-between`}>
           <div className="flex justify-between items-start mb-3">
-            <p className={`text-sm font-semibold ${data.stressLevelCode === 0 ? 'text-emerald-900/70' : 'text-orange-900/70'}`}>
-              {data.stressLevelCode === 0 ? 'Top contributor' : 'Top stressor'}
+            <p className={`text-sm font-semibold ${factorCardStyles.text}`}>
+              {factorCardStyles.label}
             </p>
             <div className="w-10 h-10 rounded-xl bg-white/80 flex items-center justify-center shadow-2xs">
-              {data.stressLevelCode === 0 ? <Icons.Sparkle /> : <Icons.AlertTarget />}
+              {factorCardStyles.icon}
             </div>
           </div>
           <p className="text-lg md:text-xl font-bold text-slate-900 capitalize leading-tight" title={data.topStressor}>{data.topStressor}</p>

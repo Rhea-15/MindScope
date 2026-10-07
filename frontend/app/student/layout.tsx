@@ -5,11 +5,48 @@ import { usePathname, useRouter } from 'next/navigation';
 
 const Icons = {
   Logo: () => (
-    <svg className="w-6 h-6 text-indigo-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5" />
-      <circle cx="12" cy="12" r="9" strokeWidth={2} />
+    <svg 
+      className="w-7 h-7 shrink-0 drop-shadow-sm" 
+      viewBox="0 0 32 32" 
+      fill="none" 
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      {/* Scope Handle */}
+      <line x1="20.5" y1="20.5" x2="28" y2="28" stroke="#4F46E5" strokeWidth="3.5" strokeLinecap="round" />
+      
+      {/* Scope Outer Lens */}
+      <circle cx="14" cy="14" r="9.5" fill="#EEF2FF" stroke="#4F46E5" strokeWidth="2.5" />
+      
+      {/* The "Mind" (Cute Stylized Brain inside the scope) */}
+      <g>
+        {/* Brain Lobes */}
+        <circle cx="11.5" cy="12.5" r="3.2" fill="#F472B6" />
+        <circle cx="16.5" cy="12.5" r="3.2" fill="#F472B6" />
+        <rect x="9" y="12" width="10" height="5" rx="2.5" fill="#F472B6" />
+        
+        {/* Blushing Cheeks */}
+        <ellipse cx="10" cy="15.5" rx="1.2" ry="0.8" fill="#BE185D" opacity="0.3" />
+        <ellipse cx="18" cy="15.5" rx="1.2" ry="0.8" fill="#BE185D" opacity="0.3" />
+        
+        {/* Cute Eyes with Glints */}
+        <circle cx="12.5" cy="14.5" r="1.2" fill="#1E1B4B" />
+        <circle cx="12.7" cy="14.2" r="0.4" fill="#FFFFFF" />
+        
+        <circle cx="15.5" cy="14.5" r="1.2" fill="#1E1B4B" />
+        <circle cx="15.7" cy="14.2" r="0.4" fill="#FFFFFF" />
+        
+        {/* Happy Smile */}
+        <path d="M13.2 16C13.2 16 14 17 14.8 16" stroke="#1E1B4B" strokeWidth="1" strokeLinecap="round" fill="none" />
+      </g>
+      
+      {/* Glass Glare / Lens Reflection */}
+      <path d="M7 11A7 7 0 0 1 11 7" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" opacity="0.9" />
+      
+      {/* Insight Sparkle */}
+      <path d="M25 2L26 5L29 6L26 7L25 10L24 7L21 6L24 5Z" fill="#F59E0B" />
     </svg>
   ),
+
   Overview: () => (
     <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
