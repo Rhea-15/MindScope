@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { PredictionResult } from '@/types';
 import GaugeChart from '@/components/charts/GaugeChart';
+import { describeFactor } from '@/lib/assessmentOptions';
+import { StudentStressInput } from '@/types';
 
 const Icons = {
   Download: () => (<svg className="w-4 h-4 ml-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>),
@@ -16,10 +18,13 @@ const Icons = {
 export default function InsightsPage() {
   const [data, setData] = useState<PredictionResult | null>(null);
   const [showAllFactors, setShowAllFactors] = useState(false);
+  const [answers, setAnswers] = useState<Partial<StudentStressInput>>({});
 
   useEffect(() => {
     const stored = localStorage.getItem('latestPrediction');
     if (stored) setData(JSON.parse(stored));
+    const saved = localStorage.getItem('latestAssessment');
+    if (saved) setAnswers(JSON.parse(saved));
   }, []);
 
   const handleSaveSummary = () => {
@@ -51,6 +56,7 @@ export default function InsightsPage() {
 
   const totalImpact = data.top_stressors.reduce((sum, str) => sum + str.impact, 0) || 1;
   const displayFactors = showAllFactors ? data.top_stressors : data.top_stressors.slice(0, 4);
+
 
   return (
     <div className="p-8 md:p-10 max-w-5xl mx-auto font-sans bg-[#f8f9fc] min-h-screen">
@@ -122,7 +128,7 @@ export default function InsightsPage() {
                 return (
                   <div key={idx} className="group">
                     <div className="flex justify-between text-sm font-semibold mb-2 capitalize text-slate-800">
-                      <span>{str.feature.replace(/_/g, ' ')}</span><span className="text-slate-500 font-medium">{percentage}%</span>
+                      <span>{describeFactor(str.feature, answers)}</span><span className="text-slate-500 font-medium">{percentage}%</span>
                     </div>
                     <div className="w-full bg-white/70 backdrop-blur-xs rounded-full h-2.5 overflow-hidden border border-slate-200/50">
                       <div className="bg-indigo-600 h-full rounded-full transition-all duration-700 ease-out" style={{ width: `${percentage}%` }} />
@@ -151,7 +157,7 @@ export default function InsightsPage() {
                 return (
                   <div key={idx} className="flex items-center gap-4 bg-white/80 backdrop-blur-sm p-4 rounded-2xl border border-white/60 shadow-2xs">
                     <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center font-bold text-sm shrink-0 border border-indigo-100">{idx + 1}</div>
-                    <div className="flex-1 overflow-hidden"><h4 className="font-bold text-slate-900 capitalize truncate" title={str.feature.replace(/_/g, ' ')}>{str.feature.replace(/_/g, ' ')}</h4></div>
+                    <div className="flex-1 overflow-hidden"><h4 className="font-bold text-slate-900 truncate" title={describeFactor(str.feature, answers)}>{describeFactor(str.feature, answers)}</h4></div>
                   </div>
                 );
               })}
