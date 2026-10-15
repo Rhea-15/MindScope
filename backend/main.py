@@ -219,7 +219,7 @@ def generate_interventions(input_data: StudentStressInput, stress_level: int) ->
     if input_data.sleep_quality <= 2: suggestions.append("💤 SLEEP: Establish a consistent bedtime routine (10-11 PM). Avoid screens 30min before sleep.")
     if input_data.study_load >= 4: suggestions.append("📚 STUDY: Break study sessions into 45-min blocks with 10-min breaks (Pomodoro).")
     if input_data.anxiety_level >= 14: suggestions.append("🧠 ANXIETY: Practice breathing exercises (4-7-8 technique) for 5min daily.")
-    if input_data.basic_needs >= 4: suggestions.append("💰 SUPPORT: Meet with university financial aid office or explore student loans.")
+    if input_data.basic_needs <= 2: suggestions.append("💰 SUPPORT: Meet with university financial aid office or explore student loans.")
     if input_data.social_support <= 2: suggestions.append("🤝 SUPPORT: Reach out to a friend, counselor, or join a campus club.")
     if input_data.headache >= 3 or input_data.breathing_problem >= 3: suggestions.append("⚕️ HEALTH: Consult campus health center. Consider stress-management workshops.")
     if input_data.self_esteem <= 12: suggestions.append("🎯 SELF-ESTEEM: Seek peer support or university counseling services.")
