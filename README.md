@@ -29,17 +29,16 @@ MindScope lets students complete a short, guided self-assessment and get back a 
 - **ML-powered prediction**: stress level, model confidence, and per-class probabilities.
 - **Explainable AI**: SHAP values surface the top 5 factors behind each result. A context-aware filter ensures healthy baselines are never shown as "stressors" and unhealthy ones are never shown as "protective factors".
 - **Personalised interventions**: rule-based coping suggestions (sleep, study load, anxiety, support, health, self-esteem), capped at 3 per result.
-- **Student dashboard**: current stress level, top stressor, wellbeing trend chart, and a "focus for this week" tip.
+- **Student dashboard**: current stress level, top stressor, wellbeing trend chart, and a "focus for this week" tip tailored to the top stressor.
 - **Stress insights**: gauge chart, factor-influence breakdown, and a printable/PDF wellbeing summary.
 - **Assessment history**: filter by 7 days / 30 days / 3 months / all time, view the trend, delete a single record or clear everything.
-- **Recommendations toolkit**: categorised self-help library (Sleep, Anxiety, Focus, Social).
+- **Recommendations toolkit**: categorised self-help library (Sleep, Anxiety, Focus, Social) with step-by-step guides.
 
 ---
 
 ## 🏗️ Architecture
 
-[![Architecture diagram of rhea-15/MindScope](https://gitdiagram.com/rhea-15/MindScope/diagram.png)](https://gitdiagram.com/rhea-15/MindScope?utm_source=readme&utm_medium=picture)
-
+[![Architecture diagram of rhea-15/manak](https://gitdiagram.com/rhea-15/manak/diagram.png)](https://gitdiagram.com/rhea-15/manak?utm_source=readme&utm_medium=picture)
 
 **Prediction flow**
 1. The student completes the 4-step form (`AssessmentForm.tsx`) and submits.
@@ -48,7 +47,7 @@ MindScope lets students complete a short, guided self-assessment and get back a 
 4. XGBoost predicts the class and class probabilities.
 5. A SHAP `TreeExplainer` computes feature contributions, which are filtered by a context-aware rule set; the top 5 are returned.
 6. Rule-based coping suggestions are generated, and the result (level, confidence, top stressor) is saved to SQLite.
-7. The frontend caches the latest result in `localStorage` and routes to the Insights page, where the gauge and factor charts are rendered.
+7. The frontend caches the latest result and assessment answers in `localStorage` and routes to the Insights page, where the gauge and factor charts are rendered.
 8. The Dashboard and History pages read past assessments via `GET /history/{email}`.
 
 ---
@@ -57,7 +56,7 @@ MindScope lets students complete a short, guided self-assessment and get back a 
 
 | Layer | Technology |
 |---|---|
-| Frontend | Next.js 14.2 (App Router), React 18, TypeScript, Tailwind CSS 3, Recharts |
+| Frontend | Next.js 14.2 (App Router), React 18, TypeScript, Tailwind CSS 3, Recharts, date-fns |
 | Backend | Python 3.11, FastAPI, Pydantic v2, Uvicorn |
 | ML | XGBoost, scikit-learn (Random Forest baseline + scalers), SHAP, pandas, NumPy, joblib |
 | Database | SQLite via SQLAlchemy |
@@ -272,7 +271,7 @@ This prints the dataset summary, both models' metrics, cross-validation scores, 
 ```bash
 python seed_db.py
 ```
-This creates 11 history records for the demo student (`alex@northbridge.edu`) showing a High → Moderate → Low trend. It also inserts 150 anonymised sample cohort records, which no current endpoint or page reads.
+This creates 10 history records for the demo student (`alex@northbridge.edu`) showing a High → Moderate → Low trend.
 
 > ⚠️ `seed_db.py` **deletes all existing assessment records** before seeding.
 
@@ -348,6 +347,8 @@ Runs a stress prediction and saves it to history.
 
 Inputs are validated by Pydantic (e.g. `anxiety_level` 0–21, `self_esteem` 0–30, `depression` 0–27, `blood_pressure` 1–3, `mental_health_history` 0–1, all other fields 0–5).
 
+> **Note:** the frontend currently sends `user_email` as the hardcoded demo address, so the `user_email` field in the payload is overwritten client-side (see Limitations).
+
 ### `GET /history/{email}`
 Returns all assessments for a user, ordered oldest → newest.
 
@@ -375,7 +376,7 @@ Deletes a single assessment (`404` if not found).
 
 | Route | Description |
 |---|---|
-| `/` | Role entry / sign-in screen |
+| `/` | Sign-in screen (student role active; counselor option present but not implemented) |
 | `/student/dashboard` | Personal overview, wellbeing trend, weekly focus |
 | `/student/assessment` | Multi-step stress assessment |
 | `/student/insights` | Result, gauge, factor breakdown, printable summary |
@@ -386,16 +387,18 @@ Deletes a single assessment (`404` if not found).
 
 ## ⚠️ Current Limitations
 
-- **Authentication is a UI placeholder.** The sign-in form has no real accounts, sessions, or role enforcement, and the student identity is hardcoded to the demo email `alex@northbridge.edu` in `lib/api.ts`.
-- **The Counselor role has no workspace yet.** Choosing "Counselor" redirects to `/admin/dashboard`, which doesn't exist in this version (it will 404).
+- **Authentication is a UI placeholder.** The sign-in form has no real accounts, sessions, or role enforcement. The student identity is hardcoded to the demo email `alex@northbridge.edu` in `lib/api.ts`, and the sign-in form's email and password fields are not validated.
 - **Small dataset.** The model is trained on 1,100 samples, and the 220-sample test set makes metrics sensitive to a few predictions. The model has not been validated on an independent or real-world student population.
 - **Dominant feature.** `blood_pressure` accounts for roughly a third of XGBoost's global feature importance. This is worth investigating for dataset artifacts before relying on it.
-- The seeded cohort records are not consumed by any endpoint or page yet.
-- `seed_db.py` references `financial_stress`, which is not a model feature, and its log message says 10 records when it inserts 11.
-- If SHAP fails, the API silently returns no stressors and falls back to `study_load` as the stored top stressor.
-- CORS is open to all origins (`*`), which is fine for development but should be restricted in production.
-- The dataset and trained model files are not in the repository, so they must be provided locally.
+- **Seed script inconsistency.** `seed_db.py` references `financial_stress`, which is not a model feature.
+- **Silent SHAP fallback.** If SHAP fails, the API returns no stressors and stores `study_load` as the top stressor.
+- **Open CORS.** CORS allows all origins (`*`) with credentials enabled. This is fine for development but should be restricted in production.
+- **Data and models are not in the repository.** The dataset and trained model files must be provided locally.
+- **Client-side hardcoded identity.** Dashboard, history, and insights pages all read the demo user's data, so every browser shares one "student".
+- **Insights page depends on local storage.** The insights page reads the latest result from `localStorage`, so it shows nothing if that data was cleared or the assessment was taken on another device.
+- **Printable summary uses `window.print()`.** The PDF summary opens a pop-up, so the browser must allow pop-ups.
 
+---
 
 ## ⚕️ Disclaimer
 
