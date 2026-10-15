@@ -2,47 +2,54 @@
 
 **AI-powered student stress assessment, explainable insights, and wellbeing support.**
 
-MindScope lets students complete a short, guided self-assessment and get back a predicted stress level (**Low / Moderate / High**) from an XGBoost model, along with the top factors driving the result (via SHAP) and personalised coping suggestions. Their history is stored so they can track trends over time. A separate admin workspace gives institutions a cohort-level view of student wellbeing.
+MindScope lets students complete a short, guided self-assessment and get back a predicted stress level (**Low / Moderate / High**) from an XGBoost model (~87% held-out accuracy). Each result comes with the top factors driving it (via SHAP) and personalised coping suggestions. Every assessment is stored, so students can track their wellbeing trend over time.
+
+> ⚕️ MindScope is a screening and self-awareness tool, **not** a medical or diagnostic device. See the [Disclaimer](#️-disclaimer).
+
+---
+
+## 📑 Table of Contents
+- [Features](#-features)
+- [Architecture](#️-architecture)
+- [Tech Stack](#-tech-stack)
+- [Project Structure](#-project-structure)
+- [The Model](#-the-model)
+- [Research Background & References](#-research-background--references)
+- [Getting Started](#-getting-started)
+- [API Reference](#-api-reference)
+- [App Routes](#️-app-routes)
+- [Current Limitations](#️-current-limitations)
+- [Disclaimer](#️-disclaimer)
 
 ---
 
 ## ✨ Features
 
-### Student workspace
-- **Guided 4-step assessment**: Academic → Environment → Psychological & Social → Physiological (20 input features).
+- **Guided 4-step assessment**: Academic → Environment → Psychological & Social → Physiological (20 input features) with slider-based inputs.
 - **ML-powered prediction**: stress level, model confidence, and per-class probabilities.
-- **Explainable AI**: SHAP values identify the top 5 factors influencing the result, with a context-aware filter so healthy baselines are never shown as "stressors" (and unhealthy ones are never shown as "protective factors").
-- **Personalised interventions**: rule-based suggestions (sleep, study load, anxiety, support, health, self-esteem), capped at 3 per result.
-- **Dashboard**: current stress level, top stressor, wellbeing trend chart, and a weekly focus tip.
-- **Insights**: gauge chart, factor-influence breakdown, and a downloadable/printable wellbeing summary.
-- **History**: filter by 7 days / 30 days / 3 months / all time, view trends, delete a single record or clear everything.
-- **Recommendations library**: categorised self-help toolkit (Sleep, Anxiety, Focus, Social).
-
-### Admin workspace (institution view)
-- **Overview dashboard**: KPIs (total students, % low/moderate/high, average risk index), stress distribution donut, and top stressors across the cohort, with filters for department, year, cohort, semester, and assessment period.
-- **Cohort analytics**: heatmap of stress factors by cohort, primary stressors, and recommended actions.
+- **Explainable AI**: SHAP values surface the top 5 factors behind each result. A context-aware filter ensures healthy baselines are never shown as "stressors" and unhealthy ones are never shown as "protective factors".
+- **Personalised interventions**: rule-based coping suggestions (sleep, study load, anxiety, support, health, self-esteem), capped at 3 per result.
+- **Student dashboard**: current stress level, top stressor, wellbeing trend chart, and a "focus for this week" tip.
+- **Stress insights**: gauge chart, factor-influence breakdown, and a printable/PDF wellbeing summary.
+- **Assessment history**: filter by 7 days / 30 days / 3 months / all time, view the trend, delete a single record or clear everything.
+- **Recommendations toolkit**: categorised self-help library (Sleep, Anxiety, Focus, Social).
 
 ---
 
 ## 🏗️ Architecture
 
-```
-┌──────────────────────────┐        REST/JSON        ┌─────────────────────────────┐
-│   Next.js 14 Frontend    │ ──────────────────────▶ │       FastAPI Backend       │
-│  (React 18, Tailwind,    │                         │                             │
-│   Recharts)              │ ◀────────────────────── │  XGBoost + SHAP + Scalers   │
-│       :3000              │                         │  SQLAlchemy ─▶ SQLite       │
-└──────────────────────────┘                         │            :8000            │
-                                                     └─────────────────────────────┘
-```
+[![Architecture diagram of rhea-15/MindScope](https://gitdiagram.com/rhea-15/MindScope/diagram.png)](https://gitdiagram.com/rhea-15/MindScope?utm_source=readme&utm_medium=picture)
+
 
 **Prediction flow**
-1. The student submits the assessment form.
-2. `POST /predict` scales the inputs (StandardScaler for continuous features, MinMaxScaler for Likert features).
-3. XGBoost predicts the class and probabilities.
-4. A SHAP `TreeExplainer` computes feature contributions, which are filtered for context.
-5. Interventions are generated, and the result (level, confidence, top stressor) is saved to SQLite.
-6. The frontend caches the latest result in `localStorage` and routes to the Insights page.
+1. The student completes the 4-step form (`AssessmentForm.tsx`) and submits.
+2. `lib/api.ts` sends `POST /predict` to the FastAPI backend.
+3. Inputs are scaled with the saved scalers (StandardScaler for continuous features, MinMaxScaler for Likert features).
+4. XGBoost predicts the class and class probabilities.
+5. A SHAP `TreeExplainer` computes feature contributions, which are filtered by a context-aware rule set; the top 5 are returned.
+6. Rule-based coping suggestions are generated, and the result (level, confidence, top stressor) is saved to SQLite.
+7. The frontend caches the latest result in `localStorage` and routes to the Insights page, where the gauge and factor charts are rendered.
+8. The Dashboard and History pages read past assessments via `GET /history/{email}`.
 
 ---
 
@@ -50,9 +57,9 @@ MindScope lets students complete a short, guided self-assessment and get back a 
 
 | Layer | Technology |
 |---|---|
-| Frontend | Next.js 14.2 (App Router), React 18, TypeScript, Tailwind CSS 3, Recharts, date-fns |
+| Frontend | Next.js 14.2 (App Router), React 18, TypeScript, Tailwind CSS 3, Recharts |
 | Backend | Python 3.11, FastAPI, Pydantic v2, Uvicorn |
-| ML | XGBoost, scikit-learn (Random Forest baseline, scalers), SHAP, pandas, NumPy, joblib |
+| ML | XGBoost, scikit-learn (Random Forest baseline + scalers), SHAP, pandas, NumPy, joblib |
 | Database | SQLite via SQLAlchemy |
 | DevOps | Docker, Docker Compose (multi-stage frontend build, Next.js `standalone` output) |
 
@@ -62,38 +69,64 @@ MindScope lets students complete a short, guided self-assessment and get back a 
 
 ```
 mindscope/
+├── .gitignore
+├── README.md
 ├── docker-compose.yml
 ├── backend/
-│   ├── main.py            # FastAPI app, DB models, SHAP, interventions, routes
+│   ├── data/              # StressLevelDataset.csv (git-ignored) + mindscope.db (runtime)
+│   ├── models/            # *.joblib artifacts (git-ignored, generated by train.py)
+│   ├── main.py            # FastAPI app, DB model, SHAP, interventions, routes
 │   ├── train.py           # Preprocessing + model training pipeline
-│   ├── seed_db.py         # Seeds demo history + cohort records
+│   ├── seed_db.py         # Seeds demo history + sample cohort records
 │   ├── requirements.txt
 │   ├── Dockerfile
-│   ├── data/              # StressLevelDataset.csv + mindscope.db (runtime)
-│   └── models/            # xgboost_model.joblib, scaler_standard.joblib, scaler_minmax.joblib
+│   └── .dockerignore
 └── frontend/
     ├── app/
-    │   ├── page.tsx                     # Login / role selection
-    │   ├── student/
-    │   │   ├── dashboard/  assessment/  insights/  history/  recommendations/
-    │   └── admin/
-    │       ├── dashboard/  cohort/
+    │   ├── layout.tsx
+    │   ├── page.tsx                     # Role entry / sign-in screen
+    │   └── student/
+    │       ├── layout.tsx               # Collapsible sidebar navigation
+    │       ├── dashboard/page.tsx
+    │       ├── assessment/page.tsx
+    │       ├── insights/page.tsx
+    │       ├── history/page.tsx
+    │       └── recommendations/page.tsx
     ├── components/
     │   ├── forms/AssessmentForm.tsx     # Multi-step assessment
     │   ├── charts/                      # GaugeChart, TrendChart, FactorChart, MetricCard
-    │   ├── cards/  ui/                  # Shared UI building blocks
-    ├── lib/api.ts                       # Backend API client
+    │   ├── cards/MetricCard.tsx
+    │   └── ui/                          # button, chart, slider, tabs
+    ├── lib/
+    │   ├── api.ts                       # Backend API client
+    │   └── assessmentOptions.ts         # Assessment form option definitions
+    ├── styles/globals.css
     ├── types/index.ts                   # Shared TS types
-    └── Dockerfile
+    ├── next.config.mjs  tailwind.config.ts  postcss.config.js
+    ├── tsconfig.json  package.json  package-lock.json
+    ├── Dockerfile
+    └── .dockerignore
 ```
 
 ---
 
 ## 🧪 The Model
 
-**Dataset**: `StressLevelDataset.csv` (target column: `stress_level`, classes 0/1/2).
+### Dataset
 
-**Input features (20)**
+`StressLevelDataset.csv` has **1,100 rows × 21 columns** (20 features + the `stress_level` target) with **no missing values**. The classes are well balanced:
+
+| Class | Label | Samples |
+|---|---|---|
+| 0 | Low | 373 |
+| 1 | Moderate | 358 |
+| 2 | High | 369 |
+
+**Source:** [Student Stress Factors: A Comprehensive Analysis](https://www.kaggle.com/datasets/rxnach/student-stress-factors-a-comprehensive-analysis) on Kaggle, published by user `rxnach`. Check the dataset page for its licence and usage terms.
+
+The CSV is git-ignored, so you need to download it from the link above and place it in `backend/data/` yourself.
+
+### Input features (20)
 
 | Group | Features | Range |
 |---|---|---|
@@ -101,15 +134,96 @@ mindscope/
 | Likert (0–5) | `academic_performance`, `study_load`, `teacher_student_relationship`, `future_career_concerns`, `basic_needs`, `living_conditions`, `safety`, `noise_level`, `peer_pressure`, `social_support`, `bullying`, `sleep_quality`, `headache`, `breathing_problem`, `extracurricular_activities` | 0–5 |
 | Categorical | `blood_pressure` (1 = Low, 2 = Normal, 3 = High) / `mental_health_history` (0 = No, 1 = Yes) | – |
 
-**Training pipeline (`train.py`)**
-- 80/20 stratified train/test split (`random_state=42`). The split happens *before* scaling to avoid data leakage.
-- `StandardScaler` on continuous features, `MinMaxScaler` on Likert features, and categorical features left as-is.
-- **Baseline**: Random Forest (100 trees, depth 15).
-- **Primary model**: XGBoost (150 estimators, depth 7, lr 0.05, subsample/colsample 0.8).
-- Evaluation with accuracy, classification report, and 5-fold stratified cross-validation, plus feature-importance output.
-- Saves `xgboost_model.joblib`, `scaler_standard.joblib`, and `scaler_minmax.joblib` to `models/`.
+### Training pipeline (`train.py`)
+- **Split**: 80/20 stratified (`random_state=42`), giving **880 training / 220 test** samples. The split happens *before* scaling to avoid data leakage.
+- **Scaling**: `StandardScaler` on continuous features, `MinMaxScaler` on Likert features, categorical features left as-is.
+- **Baseline**: Random Forest (100 trees, max depth 15, min samples split 5).
+- **Primary model**: XGBoost (150 estimators, max depth 7, learning rate 0.05, subsample / colsample 0.8, `hist` tree method).
+- **Evaluation**: accuracy, classification report, 5-fold stratified cross-validation (on the training set), and feature-importance ranking.
+- **Outputs**: `xgboost_model.joblib`, `scaler_standard.joblib`, `scaler_minmax.joblib` in `models/`.
 
-**Explainability**: `shap.TreeExplainer` on the XGBoost booster. The top 5 contributors are returned with both absolute `impact` and signed `contribution`. A rule-based filter (`is_feature_healthy`) keeps results sensible: for Moderate/High predictions, healthy-valued features can't appear as top stressors, and for Low predictions, unhealthy-valued features can't appear as protective factors.
+### Results
+
+**Held-out test set (220 samples)**
+
+| Model | Accuracy | Macro Precision | Macro Recall | Macro F1 |
+|---|---|---|---|---|
+| Random Forest (baseline) | **88.64%** | 0.89 | 0.89 | 0.89 |
+| XGBoost (primary) | 87.27% | 0.87 | 0.87 | 0.87 |
+
+**XGBoost per-class performance**
+
+| Class | Precision | Recall | F1-score | Support |
+|---|---|---|---|---|
+| 0 (Low) | 0.90 | 0.84 | 0.87 | 74 |
+| 1 (Moderate) | 0.86 | 0.90 | 0.88 | 72 |
+| 2 (High) | 0.87 | 0.88 | 0.87 | 74 |
+
+**XGBoost 5-fold cross-validation (training set)**
+
+| Fold | 1 | 2 | 3 | 4 | 5 | Mean ± Std |
+|---|---|---|---|---|---|---|
+| Accuracy | 0.8864 | 0.9148 | 0.8523 | 0.8580 | 0.8920 | **0.8807 ± 0.0230** |
+
+> **Reading these numbers:** with only 220 test samples, one prediction is ~0.45 percentage points of accuracy. The Random Forest vs. XGBoost gap (~1.4 points) is smaller than the cross-validation standard deviation (±2.3 points), so the two models perform comparably on this dataset. XGBoost is used in the app as the primary model, and SHAP's `TreeExplainer` is applied to it for explanations.
+
+### Top 10 feature importances (XGBoost)
+
+| Rank | Feature | Importance |
+|---|---|---|
+| 1 | `blood_pressure` | 0.3312 |
+| 2 | `academic_performance` | 0.1392 |
+| 3 | `sleep_quality` | 0.1192 |
+| 4 | `social_support` | 0.0841 |
+| 5 | `teacher_student_relationship` | 0.0510 |
+| 6 | `self_esteem` | 0.0304 |
+| 7 | `headache` | 0.0295 |
+| 8 | `basic_needs` | 0.0268 |
+| 9 | `depression` | 0.0233 |
+| 10 | `peer_pressure` | 0.0217 |
+
+These are XGBoost's global importances. The per-student explanations shown in the app come from SHAP and can differ from this global ranking.
+
+### Explainability
+`shap.TreeExplainer` is run on the XGBoost booster. The top 5 contributors are returned with both an absolute `impact` and a signed `contribution`. A rule-based filter (`is_feature_healthy`) keeps explanations sensible: for Moderate/High predictions, healthy-valued features can't appear as top stressors, and for Low predictions, unhealthy-valued features can't appear as protective factors.
+
+---
+
+## 📚 Research Background & References
+
+MindScope builds on established work in stress prediction, explainable ML, and validated psychological screening instruments.
+
+### Methods used in this project
+
+1. Chen, T., & Guestrin, C. (2016). **XGBoost: A Scalable Tree Boosting System.** *Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining*, 785–794. https://doi.org/10.1145/2939672.2939785
+   → Primary classification model.
+2. Breiman, L. (2001). **Random Forests.** *Machine Learning, 45*(1), 5–32. https://doi.org/10.1023/A:1010933404324
+   → Baseline model.
+3. Lundberg, S. M., & Lee, S.-I. (2017). **A Unified Approach to Interpreting Model Predictions.** *Advances in Neural Information Processing Systems 30 (NeurIPS).* https://arxiv.org/abs/1705.07874
+   → SHAP, the basis for per-prediction explanations.
+4. Lundberg, S. M., et al. (2020). **From local explanations to global understanding with explainable AI for trees.** *Nature Machine Intelligence, 2*, 56–67. https://doi.org/10.1038/s42256-019-0138-9
+   → TreeExplainer, the exact tree-model SHAP algorithm used in `main.py`.
+5. Pedregosa, F., et al. (2011). **Scikit-learn: Machine Learning in Python.** *Journal of Machine Learning Research, 12*, 2825–2830.
+   → Scalers, splits, cross-validation, and metrics.
+
+### Psychological instruments behind the score ranges
+
+The ranges of the three continuous inputs match widely used validated scales: anxiety 0–21 (GAD-7), depression 0–27 (PHQ-9), and self-esteem 0–30 (Rosenberg Self-Esteem Scale). *(Please confirm this against your dataset's documentation before publishing.)*
+
+6. Spitzer, R. L., Kroenke, K., Williams, J. B. W., & Löwe, B. (2006). **A brief measure for assessing generalized anxiety disorder: the GAD-7.** *Archives of Internal Medicine, 166*(10), 1092–1097.
+7. Kroenke, K., Spitzer, R. L., & Williams, J. B. W. (2001). **The PHQ-9: Validity of a brief depression severity measure.** *Journal of General Internal Medicine, 16*(9), 606–613.
+8. Rosenberg, M. (1965). *Society and the Adolescent Self-Image.* Princeton University Press.
+
+### Dataset
+- Kaggle. **Student Stress Factors: A Comprehensive Analysis.** Dataset by rxnach. https://www.kaggle.com/datasets/rxnach/student-stress-factors-a-comprehensive-analysis
+
+### Literature that informed MindScope
+
+9. Rois, R., Ray, M., Rahman, A., & Roy, S. K. (2021). **Prevalence and predicting factors of perceived stress among Bangladeshi university students using machine learning algorithms.** *Journal of Health, Population and Nutrition, 40*, 50. https://doi.org/10.1186/s41043-021-00276-5
+   → Compared decision tree, random forest, SVM, and logistic regression on student stress with k-fold cross-validation. Random forest performed best, which supported using tree ensembles here. Its use of feature selection before modelling also informed how MindScope's inputs were chosen.
+
+10. Biswas, T. (2026). **The Role of Socioeconomic Factors in Machine Learning-Based Classification of Student Stress Levels.** *Essex Student Journal, 17*(1). https://doi.org/10.5526/esj.453
+    → Found that ensemble models classified stress well, but socioeconomic factors alone reached only 46% accuracy. This reinforced that stress depends on academic, lifestyle, and psychological factors together, which is why MindScope uses 20 features across four groups.
 
 ---
 
@@ -120,9 +234,11 @@ mindscope/
 - Node.js 18+
 - (Optional) Docker & Docker Compose
 
+> ⚠️ `backend/data/*.csv` and `backend/models/*.joblib` are git-ignored. After cloning, you must add the dataset and train the model (step 2 below) before the API can serve predictions.
+
 ### Option 1: Docker Compose
 
-1. Make sure `backend/models/` contains the trained artifacts (see [Training](#2-train-the-model)).
+1. Add `StressLevelDataset.csv` to `backend/data/` and generate the model artifacts in `backend/models/` (see [Train the model](#2-train-the-model)).
 2. Build and start both services:
 ```bash
    docker compose up --build
@@ -132,7 +248,7 @@ mindscope/
    - API → http://localhost:8000
    - Swagger docs → http://localhost:8000/docs
 
-> `backend/data` and `backend/models` are mounted as volumes, so the SQLite DB and model files persist on your host.
+> `backend/data` and `backend/models` are mounted as volumes, so the SQLite DB and model files persist on your host. An empty `models/` folder on the host will hide any artifacts baked into the image.
 
 ### Option 2: Local development
 
@@ -145,24 +261,27 @@ pip install -r requirements.txt
 ```
 
 #### 2. Train the model
-Place `StressLevelDataset.csv` in `backend/data/` and create the `models/` folder, then run:
+Place `StressLevelDataset.csv` in `backend/data/`, then run:
 ```bash
 mkdir -p models
 python train.py
 ```
+This prints the dataset summary, both models' metrics, cross-validation scores, and feature importances, then saves the artifacts to `models/`.
 
 #### 3. (Optional) Seed demo data
 ```bash
 python seed_db.py
 ```
-This creates 11 history records for the demo student (`alex@northbridge.edu`) showing a High → Moderate → Low trend, plus 150 anonymised cohort records.
+This creates 11 history records for the demo student (`alex@northbridge.edu`) showing a High → Moderate → Low trend. It also inserts 150 anonymised sample cohort records, which no current endpoint or page reads.
+
+> ⚠️ `seed_db.py` **deletes all existing assessment records** before seeding.
 
 #### 4. Run the API
 ```bash
 uvicorn main:app --reload --port 8000
 ```
 
-#### 5. Frontend setup
+#### 5. Run the frontend
 ```bash
 cd frontend
 npm install
@@ -227,6 +346,8 @@ Runs a stress prediction and saves it to history.
 }
 ```
 
+Inputs are validated by Pydantic (e.g. `anxiety_level` 0–21, `self_esteem` 0–30, `depression` 0–27, `blood_pressure` 1–3, `mental_health_history` 0–1, all other fields 0–5).
+
 ### `GET /history/{email}`
 Returns all assessments for a user, ordered oldest → newest.
 
@@ -254,39 +375,30 @@ Deletes a single assessment (`404` if not found).
 
 | Route | Description |
 |---|---|
-| `/` | Login / role selection (student or admin) |
-| `/student/dashboard` | Personal overview, trend, weekly focus |
+| `/` | Role entry / sign-in screen |
+| `/student/dashboard` | Personal overview, wellbeing trend, weekly focus |
 | `/student/assessment` | Multi-step stress assessment |
-| `/student/insights` | Result, gauge, factor breakdown, summary export |
+| `/student/insights` | Result, gauge, factor breakdown, printable summary |
 | `/student/history` | Past assessments with filters and deletion |
 | `/student/recommendations` | Self-help toolkit |
-| `/admin/dashboard` | Institution-wide stress overview |
-| `/admin/cohort` | Cohort analytics and heatmap |
 
 ---
 
 ## ⚠️ Current Limitations
 
-- **Authentication is a UI placeholder.** There are no real accounts, sessions, or role enforcement. The student identity is hardcoded to the demo email `alex@northbridge.edu`.
-- **Admin dashboards currently render mock/sample data**; the backend has no cohort/aggregate endpoints yet (the seeded cohort records aren't read by the admin UI).
-- **The `/admin/stressors` nav item has no matching page yet.**
-- `hooks/usePrediction.ts` and `hooks/useAssessmentHistory.ts` are empty stubs.
+- **Authentication is a UI placeholder.** The sign-in form has no real accounts, sessions, or role enforcement, and the student identity is hardcoded to the demo email `alex@northbridge.edu` in `lib/api.ts`.
+- **The Counselor role has no workspace yet.** Choosing "Counselor" redirects to `/admin/dashboard`, which doesn't exist in this version (it will 404).
+- **Small dataset.** The model is trained on 1,100 samples, and the 220-sample test set makes metrics sensitive to a few predictions. The model has not been validated on an independent or real-world student population.
+- **Dominant feature.** `blood_pressure` accounts for roughly a third of XGBoost's global feature importance. This is worth investigating for dataset artifacts before relying on it.
+- The seeded cohort records are not consumed by any endpoint or page yet.
+- `seed_db.py` references `financial_stress`, which is not a model feature, and its log message says 10 records when it inserts 11.
+- If SHAP fails, the API silently returns no stressors and falls back to `study_load` as the stored top stressor.
 - CORS is open to all origins (`*`), which is fine for development but should be restricted in production.
-- The training dataset and trained model files are not included in the repo.
+- The dataset and trained model files are not in the repository, so they must be provided locally.
 
-## 🛣️ Roadmap Ideas
-
-- Real authentication (JWT / OAuth) and role-based access control
-- Backend aggregate endpoints powering the admin dashboards from real data
-- Admin "Stressors" page
-- Migrate from SQLite to PostgreSQL for multi-user deployments
-- Model monitoring, calibration, and fairness evaluation
-- Connect users to real campus counselling resources and crisis helplines
-
----
 
 ## ⚕️ Disclaimer
 
-MindScope is an educational/screening tool and **not a medical or diagnostic device**. Its output does not replace professional mental health advice, diagnosis, or treatment. If you or someone you know is struggling, please contact a qualified counsellor or local emergency/crisis services.
+MindScope is an educational/screening tool and **not** a medical or diagnostic device. Its output does not replace professional mental health advice, diagnosis, or treatment. If you or someone you know is struggling, please contact a qualified counsellor or local emergency/crisis services.
 
 ---
